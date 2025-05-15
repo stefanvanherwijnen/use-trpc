@@ -6,6 +6,7 @@
     "strict": true,
     "moduleResolution": "node",
     "noUncheckedIndexedAccess": true,
-    "importsNotUsedAsValues": "error"
+    "verbatimModuleSyntax": true,
+    "declarationMap": true
   }
 }

@@ -1,22 +1,25 @@
-import type { AnyProcedure, AnyRouter, ProcedureType } from '@trpc/server'
-
+import type { AnyRouter, ProcedureType, AnyProcedure, Procedure } from '@trpc/server/unstable-core-do-not-import/index'
 export type Fn<T = any> = () => T
 export type MaybeAsyncFn<T = any> = () => T | Promise<T>
 
-export type inferProcedureNames<
-  R extends AnyRouter,
-  T extends ProcedureType,
-  P extends R['_def']['procedures'] = R['_def']['procedures'],
-  K extends keyof P = keyof P
+type ProcedurePathsInternal<
+  T,
+  Method extends ProcedureType,
+  K extends keyof T = keyof T,
+  P extends string = ''
 > = K extends string
-  ? P[K] extends AnyProcedure
-    ? P[K]['_type'] extends T
-      ? K
-      : never
-    : P[K] extends AnyRouter
-    ? `${K}.${inferProcedureNames<P[K], T>}`
+  ? K extends '_def'
+    ? never
+    : T[K] extends Procedure<Method, any>
+    ? `${P}${K}`
+    : T[K] extends object
+    ? ProcedurePathsInternal<T[K], Method, keyof T[K], `${P}${K}.`>
     : never
   : never
+
+type ProcedurePaths<T, Method extends ProcedureType> = Exclude<ProcedurePathsInternal<T, Method>, undefined>
+
+export type inferProcedureNames<R extends any, T extends ProcedureType> = ProcedurePaths<R, T>
 
 export type inferProcedureValues<
   T extends AnyRouter,

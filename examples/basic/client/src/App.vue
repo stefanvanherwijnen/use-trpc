@@ -1,42 +1,69 @@
 <script setup lang="ts">
-  import { reactive, ref } from 'vue'
+import { reactive, ref } from 'vue'
 
-  import type { Router } from '../../server/'
-  // Import the public package if copying this example
-  // import { useTRPC } from 'use-trpc'
-  import { useTRPC } from '../../../../src/'
+import type { Router } from '../../server/'
+// Import the public package if copying this example
+// import { useTRPC } from 'use-trpc'
+import { useTRPC, inferProcedureNames } from '../../../../src/'
 
-  // We bring in this composable from vueuse to help with our loading indicator
-  // as our demo is all on local host we need to force a delay to see the loading indicator
-  import { refThrottled } from '@vueuse/core'
+// We bring in this composable from vueuse to help with our loading indicator
+// as our demo is all on local host we need to force a delay to see the loading indicator
+import { refThrottled } from '@vueuse/core'
+import { inferProcedureValues } from '../../../../src/types'
+import type { inferRouterInputs, Procedure, ProcedureType } from '@trpc/server/unstable-core-do-not-import'
 
-  const { useQuery, useSubscription, isExecuting, executions, connected } = useTRPC<Router>({
-    url: `/trpc`, // note the vite.config.ts proxy helping us with cors issues here
-    wsUrl: `ws://localhost:8080/`,
-  })
+const { useQuery, useSubscription, isExecuting, executions, connected } = useTRPC<Router>({
+  url: `/trpc`, // note the vite.config.ts proxy helping us with cors issues here
+  wsUrl: `ws://localhost:8080/`,
+})
 
-  // Throttle loading states to avoid flicker when loading
-  const loading = refThrottled(isExecuting, 750)
-  const messages = refThrottled(executions, 750)
+type ProcedurePathsInternal<
+  T,
+  Method extends ProcedureType,
+  K extends keyof T = keyof T,
+  P extends string = ''
+> = K extends string
+  ? K extends '_def'
+    ? never
+    : T[K] extends Procedure<Method, any>
+    ? `${P}${K}`
+    : T[K] extends object
+    ? ProcedurePathsInternal<T[K], Method, keyof T[K], `${P}${K}.`>
+    : never
+  : never
 
-  const id = ref(0)
-  const { data, abortController } = useQuery('getUser', {
-    args: reactive({ id }),
-    msg: 'Loading User',
-    immediate: true,
-  })
+type ProcedurePaths<T, Method extends ProcedureType> = Exclude<ProcedurePathsInternal<T, Method>, undefined>
 
-  const {
-    data: uptimeData,
-    subscribe,
-    unsubscribe,
-    subscribed,
-  } = useSubscription('uptime', {
-    args: () => id.value,
-    initialData: { start: 0, uptime: 0, id: id.value },
-    // Force reactive tracking of the args function
-    reactive: true,
-  })
+// Example usage:
+type Keys = ProcedurePaths<Router, 'query'>
+
+export type RouterInputs = inferRouterInputs<Router>
+type yo = inferProcedureNames<Router, 'query'>
+let kjldsf: yo['yo']
+let asdf: inferProcedureValues<Router, yo>
+
+// Throttle loading states to avoid flicker when loading
+const loading = refThrottled(isExecuting, 750)
+const messages = refThrottled(executions, 750)
+
+const id = ref(0)
+const { data, abortController } = useQuery('getUser', {
+  args: reactive({ id }),
+  msg: 'Loading User',
+  immediate: true,
+})
+
+const {
+  data: uptimeData,
+  subscribe,
+  unsubscribe,
+  subscribed,
+} = useSubscription('uptime', {
+  args: () => id.value,
+  initialData: { start: 0, uptime: 0, id: id.value },
+  // Force reactive tracking of the args function
+  reactive: true,
+})
 </script>
 
 <template>
@@ -65,47 +92,47 @@
 </template>
 
 <style scoped>
-  .slide-enter-active {
-    transition: all 0.3s ease-out;
-  }
+.slide-enter-active {
+  transition: all 0.3s ease-out;
+}
 
-  .slide-leave-active {
-    transition: all 0.8s cubic-bezier(1, 0.5, 0.8, 1);
-  }
+.slide-leave-active {
+  transition: all 0.8s cubic-bezier(1, 0.5, 0.8, 1);
+}
 
-  .slide-enter-from,
-  .slide-leave-to {
-    transform: translateY(-10vh);
-    opacity: 0;
-  }
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateY(-10vh);
+  opacity: 0;
+}
 
-  .row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 0.25rem;
-  }
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
+}
 
-  .indicator {
-    width: 0.25rem;
-    height: 0.25rem;
-    border-radius: 50%;
-    background-color: red;
-  }
-  .indicator.active {
-    background-color: green;
-  }
+.indicator {
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 50%;
+  background-color: red;
+}
+.indicator.active {
+  background-color: green;
+}
 
-  .loading {
-    font-family: sans-serif;
-    position: absolute;
-    font-size: 0.75rem;
-    font-weight: bold;
-    top: 0;
-    right: 0;
-    padding: 0.75rem;
-    background: rgb(86, 168, 24);
-    color: white;
-    text-transform: uppercase;
-  }
+.loading {
+  font-family: sans-serif;
+  position: absolute;
+  font-size: 0.75rem;
+  font-weight: bold;
+  top: 0;
+  right: 0;
+  padding: 0.75rem;
+  background: rgb(86, 168, 24);
+  color: white;
+  text-transform: uppercase;
+}
 </style>

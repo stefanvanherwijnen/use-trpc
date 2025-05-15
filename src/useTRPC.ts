@@ -1,12 +1,13 @@
 import {
-  CreateTRPCClientOptions,
-  createTRPCProxyClient,
+  type CreateTRPCClientOptions,
+  createTRPCClient,
   createWSClient,
   httpLink,
   loggerLink,
   splitLink,
-  TRPCLink,
+  type TRPCLink,
   wsLink,
+  type TRPCClient,
 } from '@trpc/client'
 import {
   computed,
@@ -15,14 +16,18 @@ import {
   nextTick,
   onScopeDispose,
   readonly,
-  Ref,
   ref,
   shallowRef,
-  UnwrapRef,
+  type UnwrapRef,
   watch,
+  type Ref,
 } from 'vue-demi'
 
-import type { AnyRouter, inferProcedureInput, inferProcedureOutput, MaybePromise, ProcedureType } from '@trpc/server'
+// Prevent build error
+import type { EMPTY_ARR } from '@vue/shared'
+
+import type { AnyTRPCRouter, inferProcedureInput, inferProcedureOutput } from '@trpc/server'
+import type { MaybePromise, ProcedureType } from '@trpc/server/unstable-core-do-not-import'
 import type { Observable, Unsubscribable } from '@trpc/server/observable'
 import type { Fn, inferProcedureNames, inferProcedureValues, MaybeAsyncFn } from './types'
 import type { TRPCSubscriptionObserver } from '@trpc/client/dist/internals/TRPCUntypedClient'
@@ -64,12 +69,12 @@ type SubscriptionState = 'started' | 'stopped' | 'completed' | 'created'
  * @param config.isWebSocketConnected When using custom client config this ref can be used to indicate if the websocket is connected. It is used just as a readonly passthrough for consistency
  * @param config.silent Suppress any use-tRPC warnings or errors
  */
-export const useTRPC = <Router extends AnyRouter>(config: {
+export const useTRPC = <Router extends AnyTRPCRouter>(config: {
   url?: Parameters<typeof httpLink>[0]['url']
   headers?: Parameters<typeof httpLink>[0]['headers']
   wsUrl?: string
   logger?: boolean | Parameters<typeof loggerLink>[0]
-  transformer?: Parameters<typeof createTRPCProxyClient>[0]['transformer']
+  transformer?: CreateTRPCClientOptions<Router>['transformer']
   client?: CreateTRPCClientOptions<Router>
   isWebSocketConnected?: Ref<boolean>
   silent?: boolean
@@ -132,7 +137,7 @@ export const useTRPC = <Router extends AnyRouter>(config: {
   if (!clientOptions) throw Error('URL, WsURL, or Client Configuration Required')
 
   if (loggerLinkConfig) clientOptions.links.unshift(loggerLinkConfig)
-  const client = createTRPCProxyClient<Router>({
+  const client: TRPCClient<Router> = createTRPCClient<Router>({
     transformer: config.transformer,
     ...clientOptions,
   })
@@ -168,7 +173,7 @@ export const useTRPC = <Router extends AnyRouter>(config: {
      * @param procedureConfig.msg Message to display in the execution list
      */
     return <
-      P extends inferProcedureNames<Router, Method>,
+      P extends inferProcedureNames<Router, Method> = inferProcedureNames<Router, Method>,
       I extends inferProcedureInput<inferProcedureValues<Router, P>> = inferProcedureInput<
         inferProcedureValues<Router, P>
       >,
@@ -256,7 +261,9 @@ export const useTRPC = <Router extends AnyRouter>(config: {
           if (areArgsFn && _args === undefined) return
 
           abortController.value = new AbortController()
-          _data.value = (await fn[method](_args, { signal: abortController.value.signal })) as UnwrapRef<O>
+          _data.value = (await fn[method](_args, {
+            signal: abortController.value.signal,
+          })) as UnwrapRef<O>
         } catch (e) {
           // if (!config.silent) console.error(e)
           _error.value = e
@@ -350,10 +357,9 @@ export const useTRPC = <Router extends AnyRouter>(config: {
     I extends inferProcedureInput<inferProcedureValues<Router, P>> = inferProcedureInput<
       inferProcedureValues<Router, P>
     >,
-    O extends inferProcedureValues<Router, P>['_def']['_output_out'] = inferProcedureValues<
-      Router,
-      P
-    >['_def']['_output_out'],
+    O extends inferProcedureOutput<inferProcedureValues<Router, P>> = inferProcedureOutput<
+      inferProcedureValues<Router, P>
+    >,
     R extends [any, any] = O extends Observable<infer O, infer E> ? [O, E] : [never, never]
   >(
     topic: P,
@@ -418,6 +424,7 @@ export const useTRPC = <Router extends AnyRouter>(config: {
           _state.value = 'stopped'
           if (onStopped) onStopped()
         },
+        onConnectionStateChange() {},
       })
       _subscribed.value = true
 
@@ -468,7 +475,18 @@ export const useTRPC = <Router extends AnyRouter>(config: {
       { immediate: true }
     )
 
-    return { data, error, subscribe, unsubscribe, resubscribe, subscribed, state, paused, pause, unpause }
+    return {
+      data,
+      error,
+      subscribe,
+      unsubscribe,
+      resubscribe,
+      subscribed,
+      state,
+      paused,
+      pause,
+      unpause,
+    }
   }
 
   return {
