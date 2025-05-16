@@ -4,43 +4,16 @@ import { reactive, ref } from 'vue'
 import type { Router } from '../../server/'
 // Import the public package if copying this example
 // import { useTRPC } from 'use-trpc'
-import { useTRPC, inferProcedureNames } from '../../../../src/'
+import { useTRPC } from '../../../../src/'
 
 // We bring in this composable from vueuse to help with our loading indicator
 // as our demo is all on local host we need to force a delay to see the loading indicator
 import { refThrottled } from '@vueuse/core'
-import { inferProcedureValues } from '../../../../src/types'
-import type { inferRouterInputs, Procedure, ProcedureType } from '@trpc/server/unstable-core-do-not-import'
 
 const { useQuery, useSubscription, isExecuting, executions, connected } = useTRPC<Router>({
   url: `/trpc`, // note the vite.config.ts proxy helping us with cors issues here
   wsUrl: `ws://localhost:8080/`,
 })
-
-type ProcedurePathsInternal<
-  T,
-  Method extends ProcedureType,
-  K extends keyof T = keyof T,
-  P extends string = ''
-> = K extends string
-  ? K extends '_def'
-    ? never
-    : T[K] extends Procedure<Method, any>
-    ? `${P}${K}`
-    : T[K] extends object
-    ? ProcedurePathsInternal<T[K], Method, keyof T[K], `${P}${K}.`>
-    : never
-  : never
-
-type ProcedurePaths<T, Method extends ProcedureType> = Exclude<ProcedurePathsInternal<T, Method>, undefined>
-
-// Example usage:
-type Keys = ProcedurePaths<Router, 'query'>
-
-export type RouterInputs = inferRouterInputs<Router>
-type yo = inferProcedureNames<Router, 'query'>
-let kjldsf: yo['yo']
-let asdf: inferProcedureValues<Router, yo>
 
 // Throttle loading states to avoid flicker when loading
 const loading = refThrottled(isExecuting, 750)
